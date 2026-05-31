@@ -88,12 +88,12 @@ if (matchedStudent) {
         course: matchedStudent ? matchedStudent.course : null,
         recognizedAt
     });
-        const res = await axios.post("http://localhost:5001/api/periodwise-attendance", {
-          prn,
-          name: matchedStudent ? matchedStudent.name : null,
-          course: matchedStudent ? matchedStudent.course : null,
-          recognizedAt
-        });
+        // const res = await axios.post("http://localhost:5001/api/periodwise-attendance", {
+        //   prn,
+        //   name: matchedStudent ? matchedStudent.name : null,
+        //   course: matchedStudent ? matchedStudent.course : null,
+        //   recognizedAt
+        // });
 
 
         alert(res.data.message);

@@ -69,10 +69,115 @@ const attendanceLogSchema = new mongoose.Schema({
   prn: String,
   name: String,
   course: String,
+  period: String,
   recognizedAt: { type: Date, default: Date.now }
 });
+// const attendanceLogSchema = new mongoose.Schema({
+//   prn: String,
+//   name: String,
+//   course: String,
+//   recognizedAt: { type: Date, default: Date.now }
+// });
 
 const AttendanceLog = mongoose.model('AttendanceLog', attendanceLogSchema);
+app.post('/api/attendance', async (req, res) => {
+  const { prn, name, course, recognizedAt } = req.body;
+
+  if (!prn) {
+    return res.status(400).json({ message: "PRN is required" });
+  }
+
+  try {
+    let student = await Student.findOne({ prn });
+
+    if (!student && (!name || !course)) {
+      return res.status(404).json({
+        message: "Student not found"
+      });
+    }
+
+    const attendanceTime = recognizedAt
+      ? new Date(recognizedAt)
+      : new Date();
+
+    const period = getPeriodForCurrentTime(attendanceTime);
+
+    if (period === "Break") {
+      return res.status(400).json({
+        message: "Attendance cannot be marked during break"
+      });
+    }
+
+    if (period === "No Period") {
+      return res.status(400).json({
+        message: "No valid lecture at this time"
+      });
+    }
+
+    const today = new Date(
+      attendanceTime.toISOString().split("T")[0]
+    );
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const existingAttendance = await AttendanceLog.findOne({
+  prn,
+  period,
+  recognizedAt: {
+    $gte: today,
+    $lt: tomorrow
+  }
+});
+
+    if (existingAttendance) {
+  return res.status(400).json({
+    message: `${period} attendance already recorded today`
+  });
+}
+
+    const attendanceLog = new AttendanceLog({
+      prn,
+      name: student ? student.name : name,
+      course: student ? student.course : course,
+      period,
+      recognizedAt: attendanceTime
+    });
+
+    await attendanceLog.save();
+
+    const existingPeriodLog =
+      await PeriodwiseAttendanceLog.findOne({
+        prn,
+        period,
+        recognizedAt: {
+          $gte: today,
+          $lt: tomorrow
+        }
+      });
+
+    if (!existingPeriodLog) {
+      await PeriodwiseAttendanceLog.create({
+        prn,
+        name: student ? student.name : name,
+        course: student ? student.course : course,
+        period,
+        recognizedAt: attendanceTime
+      });
+    }
+
+    res.status(200).json({
+      message: `Attendance recorded for ${period}`
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Failed to log attendance"
+    });
+  }
+});
+/*
 app.post('/api/attendance', async (req, res) => {
   const { prn, name, course, recognizedAt } = req.body;
   if (!prn) {
@@ -114,6 +219,8 @@ app.post('/api/attendance', async (req, res) => {
     res.status(500).json({ message: "Failed to log attendance" });
   }
 });
+*/
+
 ///////////////////////admin login and signup///////////
 const AdminSchema = new mongoose.Schema({
   username: String,
@@ -222,7 +329,7 @@ app.get("/download-logs", async (req, res) => {
       return res.status(404).send("No attendance logs found");
     }
 
-    let csv = "Name,PRN,Course,Recognized At\n";
+    let csv = "Name,PRN,Course,Subject,Recognized At\n";
 
     logs.forEach((log) => {
 
@@ -239,7 +346,7 @@ app.get("/download-logs", async (req, res) => {
     }
   );
 
-  csv += `${log.name},${log.prn || log.usn},${log.course},"${formattedDate}"\n`;
+  csv += `${log.name},${log.prn || log.usn},${log.course},${log.period || ""},"${formattedDate}"\n`;
 });
 
     // logs.forEach((log) => {

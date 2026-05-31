@@ -11,16 +11,28 @@ import React, { useState, useEffect } from 'react';
 const Dashboard = () => {
     const [attendance, setAttendance] = useState([]);
     const [students, setStudents] = useState([]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(4);
+    // const [currentPage, setCurrentPage] = useState(1);
+    // const [itemsPerPage] = useState(4);
     const [selectedCourse, setSelectedCourse] = useState("All");
 
     const today = new Date().toISOString().split('T')[0];
+    const presentTodayPRNs = new Set(
+  attendance
+    .filter((student) => {
+      const attendedDate = new Date(student.recognizedAt)
+        .toISOString()
+        .split("T")[0];
 
-    const presentToday = attendance.filter((student) => {
-        const attendedDate = new Date(student.recognizedAt).toISOString().split('T')[0];
-        return attendedDate === today;
-    });
+      return attendedDate === today;
+    })
+    .map((student) => student.prn)
+);
+
+const presentTodayCount = presentTodayPRNs.size;
+    // const presentToday = attendance.filter((student) => {
+    //     const attendedDate = new Date(student.recognizedAt).toISOString().split('T')[0];
+    //     return attendedDate === today;
+    // });
 
     const handleManualAttendance = async () => {
         const name = document.querySelector('input[name="manual_name"]').value;
@@ -42,7 +54,10 @@ const Dashboard = () => {
     };
 
     const totalStudents = students.length;
-    const absentStudents = totalStudents - presentToday.length;
+    const absentStudents = Math.max(
+  0,
+  totalStudents - presentTodayCount
+);
 
     useEffect(() => {
         const fetchAttendance = async () => {
@@ -72,12 +87,13 @@ const Dashboard = () => {
     const filteredAttendance = selectedCourse === "All"
         ? attendance
         : attendance.filter((student) => student.course === selectedCourse);
+    
+    const currentAttendance = filteredAttendance;
+    // const indexOfLastItem = currentPage * itemsPerPage;
+    // const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    // const currentAttendance = filteredAttendance.slice(indexOfFirstItem, indexOfLastItem);
 
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentAttendance = filteredAttendance.slice(indexOfFirstItem, indexOfLastItem);
-
-    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+    // const paginate = (pageNumber) => setCurrentPage(pageNumber);
     // download 
     const downloadLogs = () => {
         window.open("http://localhost:5001/download-logs", "_blank");
@@ -156,7 +172,7 @@ const Dashboard = () => {
                                 <p className="text-xs font-semibold text-gray-600">TOTAL</p>
                                 <p className="text-blue-600 text-md font-semibold mt-1">Students Present Today</p>
                             </div>
-                            <p className="text-5xl font-bold text-gray-800 px-6">{presentToday.length}</p>
+                            <p className="text-5xl font-bold text-gray-800 px-6">{presentTodayCount}</p>
                         </div>
 
                         {/* Absent Today */}
@@ -204,32 +220,42 @@ const Dashboard = () => {
                                 </select>
                             </div>
 
-                            <div className="overflow-x-auto mt-2">
+                            <div className="overflow-y-auto mt-2 max-h-[255px] ">
                                 <table className="min-w-full table-auto border-separate border-spacing-y-2 text-sm text-gray-900">
                                     <thead>
                                         <tr className="bg-[#F7F7F7] text-gray-900">
-                                            <th className="text-left px-4 py-3 rounded-l-lg">Name</th>
-                                            <th className="text-left px-4 py-3">PRN</th>
-                                            <th className="text-left px-4 py-3">Course</th>
-                                            <th className="text-left px-4 py-3 rounded-r-lg">Timings</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentAttendance.length > 0 ? (
-                                            currentAttendance.map((student, index) => (
-                                                <tr key={index} className="hover:bg-[#f0f4f8] transition-colors duration-200 rounded-lg">
-                                                    <td className="px-4 py-3">{student.name}</td>
-                                                    <td className="px-4 py-3">{student.prn}</td>
-                                                    <td className="px-4 py-3">{student.course}</td>
-                                                    <td className="px-4 py-3">{new Date(student.recognizedAt).toLocaleString()}</td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="4" className="text-center text-gray-400">No attendance logs available</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
+    <th className="text-left px-4 py-3 rounded-l-lg">Name</th>
+    <th className="text-left px-4 py-3">PRN</th>
+    <th className="text-left px-4 py-3">Course</th>
+    <th className="text-left px-4 py-3">Subject</th>
+    <th className="text-left px-4 py-3 rounded-r-lg">Timings</th>
+</tr>
+</thead>
+
+<tbody>
+    {currentAttendance.length > 0 ? (
+        currentAttendance.map((student, index) => (
+            <tr
+                key={index}
+                className="hover:bg-[#f0f4f8] transition-colors duration-200 rounded-lg"
+            >
+                <td className="px-4 py-3">{student.name}</td>
+                <td className="px-4 py-3">{student.prn}</td>
+                <td className="px-4 py-3">{student.course}</td>
+                <td className="px-4 py-3">{student.period}</td>
+                <td className="px-4 py-3">
+                    {new Date(student.recognizedAt).toLocaleString()}
+                </td>
+            </tr>
+        ))
+    ) : (
+        <tr>
+            <td colSpan="5" className="text-center text-gray-400">
+                No attendance logs available
+            </td>
+        </tr>
+    )}
+</tbody>
                                 </table>
                             </div>
                         </div>
