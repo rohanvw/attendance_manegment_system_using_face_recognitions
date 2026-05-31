@@ -101,7 +101,11 @@ app.post('/api/attendance', async (req, res) => {
       : new Date();
 
     const period = getPeriodForCurrentTime(attendanceTime);
-
+    if (period === "Holiday") {
+      return res.status(400).json({
+        message: "Attendance cannot be recorded on Sunday"
+      });
+    }
     if (period === "Break") {
       return res.status(400).json({
         message: "Attendance cannot be marked during break"
@@ -122,19 +126,19 @@ app.post('/api/attendance', async (req, res) => {
     tomorrow.setDate(today.getDate() + 1);
 
     const existingAttendance = await AttendanceLog.findOne({
-  prn,
-  period,
-  recognizedAt: {
-    $gte: today,
-    $lt: tomorrow
-  }
-});
+      prn,
+      period,
+      recognizedAt: {
+        $gte: today,
+        $lt: tomorrow
+      }
+    });
 
     if (existingAttendance) {
-  return res.status(400).json({
-    message: `${period} attendance already recorded today`
-  });
-}
+      return res.status(400).json({
+        message: `${period} attendance already recorded today`
+      });
+    }
 
     const attendanceLog = new AttendanceLog({
       prn,
@@ -287,6 +291,17 @@ app.post('/api/periodwise-attendance', async (req, res) => {
     const now = recognizedAt ? new Date(recognizedAt) : new Date();
     const period = getPeriodForCurrentTime(now);
     console.log("Calculated period:", period);
+    if (period === "Holiday") {
+      return res.status(400).json({
+        message: "Attendance cannot be recorded on Sunday"
+      });
+    }
+
+    if (period === "Break") {
+      return res.status(400).json({
+        message: "Attendance cannot be marked during break"
+      });
+    }
     if (period === 'No Period') {
       return res.status(400).json({ message: "No valid class period at this time" });
     }
@@ -333,21 +348,21 @@ app.get("/download-logs", async (req, res) => {
 
     logs.forEach((log) => {
 
-  const formattedDate = new Date(log.recognizedAt).toLocaleString(
-    'en-US',
-    {
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    }
-  );
+      const formattedDate = new Date(log.recognizedAt).toLocaleString(
+        'en-US',
+        {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        }
+      );
 
-  csv += `${log.name},${log.prn || log.usn},${log.course},${log.period || ""},"${formattedDate}"\n`;
-});
+      csv += `${log.name},${log.prn || log.usn},${log.course},${log.period || ""},"${formattedDate}"\n`;
+    });
 
     // logs.forEach((log) => {
     //   csv += `${log.name},${log.prn || log.usn},${log.course},${log.recognizedAt}\n`;
@@ -367,39 +382,115 @@ app.get("/download-logs", async (req, res) => {
 
 // Time-based period determination
 function getPeriodForCurrentTime(currentTime) {
-  const hours = currentTime.getHours();
-  const minutes = currentTime.getMinutes();
-  const totalMinutes = hours * 60 + minutes;
-  const periods = [
-    { name: "DE",       start: 10 * 60 + 0,  end: 11 * 60 + 0 },
-    { name: "ACV",     start: 11 * 60 + 0,  end: 12 * 60 + 0 },
-    // Lunch break (not counted as period)
-    { name: "Lunch Break", start: 12 * 60 + 0, end: 12 * 60 + 45, break: true },
-    { name: "FSD", start: 12 * 60 + 45, end: 13 * 60 + 45 },
-    { name: "NLP",      start: 13 * 60 + 45, end: 14 * 60 + 45 },
-    // Tea break
-    { name: "Tea Break",   start: 14 * 60 + 45, end: 15 * 60 + 0, break: true },
 
-    { name: "BT",      start: 15 * 60 + 0,  end: 16 * 60 + 0 }
-  ];
-  for (const p of periods) {
-    if (totalMinutes >= p.start && totalMinutes < p.end) {
-      if (p.break) {
-        return "Break"; // prevent marking attendance in break
+  const day = currentTime.toLocaleDateString(
+    "en-US",
+    { weekday: "long" }
+  );
+
+  const totalMinutes =
+    currentTime.getHours() * 60 +
+    currentTime.getMinutes();
+
+  console.log("Day:", day);
+  console.log("Current Time:", currentTime);
+  console.log("Minutes:", totalMinutes);
+
+  const timetable = {
+    Monday: [
+      { name: "AML", start: 600, end: 660 },
+      { name: "ESD", start: 660, end: 720 },
+      { name: "Lunch Break", start: 720, end: 765, break: true },
+      { name: "I&A", start: 765, end: 825 },
+      { name: "DL", start: 825, end: 885 },
+      { name: "Tea Break", start: 885, end: 900, break: true },
+      { name: "LAB", start: 900, end: 1020 }
+    ],
+
+    Tuesday: [
+      { name: "DL", start: 600, end: 660 },
+      { name: "BDA", start: 660, end: 720 },
+      { name: "Lunch Break", start: 720, end: 765, break: true },
+      { name: "I&A", start: 765, end: 825 },
+      { name: "LIB", start: 825, end: 885 },
+      { name: "Tea Break", start: 885, end: 900, break: true },
+      { name: "LAB", start: 900, end: 1020 }
+    ],
+
+    Wednesday: [
+      { name: "AML", start: 600, end: 660 },
+      { name: "BDA", start: 660, end: 720 },
+      { name: "Lunch Break", start: 720, end: 765, break: true },
+      { name: "LIB", start: 765, end: 825 },
+      { name: "DL", start: 825, end: 885 },
+      { name: "Tea Break", start: 885, end: 900, break: true },
+      { name: "LAB", start: 900, end: 1020 }
+    ],
+
+    Thursday: [
+      { name: "AML", start: 600, end: 660 },
+      { name: "BDA", start: 660, end: 720 },
+      { name: "Lunch Break", start: 720, end: 765, break: true },
+      { name: "ESD", start: 765, end: 825 },
+      { name: "I&A", start: 825, end: 885 },
+      { name: "Tea Break", start: 885, end: 900, break: true },
+      { name: "LAB", start: 900, end: 1020 }
+    ],
+
+    Friday: [
+      { name: "ESD", start: 600, end: 660 },
+      { name: "BDA", start: 660, end: 720 },
+      { name: "Lunch Break", start: 720, end: 765, break: true },
+      { name: "I&A", start: 765, end: 825 },
+      { name: "DL", start: 825, end: 885 },
+      { name: "Tea Break", start: 885, end: 900, break: true },
+      { name: "LAB", start: 900, end: 1020 }
+    ],
+
+    Saturday: [
+      { name: "ESD", start: 600, end: 660 },
+      { name: "GATE", start: 660, end: 720 },
+      { name: "Lunch Break", start: 720, end: 765, break: true },
+      { name: "I&A", start: 765, end: 825 },
+      { name: "AML", start: 825, end: 885 },
+      { name: "Tea Break", start: 885, end: 900, break: true },
+      { name: "LAB", start: 900, end: 1020 }
+    ]
+  };
+
+  if (day === "Sunday") {
+  console.log("Returning Holiday");
+  return "Holiday";
+}
+  const todaySchedule = timetable[day];
+
+  if (!todaySchedule) {
+    return "No Period";
+  }
+
+  for (const period of todaySchedule) {
+    if (
+      totalMinutes >= period.start &&
+      totalMinutes < period.end
+    ) {
+      if (period.break) {
+        return "Break";
       }
-      return p.name;
+
+      return period.name;
     }
   }
-  return "No Period"; // outside any class
+
+  return "No Period";
 }
-app.get('/api/periodwise-attendance', async(req,res)=>{
-try{
-  const logs=await PeriodwiseAttendanceLog.find().sort({recognizedAt:-1});
-res.json(logs);
-}catch{
-  console.log("Error fetching periodwise logs:", err);
-  res.status(500).json({ message: "Failed to fetch periodwise attendance logs" });
-}
+app.get('/api/periodwise-attendance', async (req, res) => {
+  try {
+    const logs = await PeriodwiseAttendanceLog.find().sort({ recognizedAt: -1 });
+    res.json(logs);
+  } catch {
+    console.log("Error fetching periodwise logs:", err);
+    res.status(500).json({ message: "Failed to fetch periodwise attendance logs" });
+  }
 });
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

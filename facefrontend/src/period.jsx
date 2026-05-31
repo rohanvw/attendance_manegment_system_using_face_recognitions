@@ -8,6 +8,74 @@ const Period = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
 
+  const timetable = {
+    Monday: [
+      ["10:00 - 11:00", "AML"],
+      ["11:00 - 12:00", "ESD"],
+      ["12:00 - 12:45", "Lunch Break"],
+      ["12:45 - 1:45", "I&A"],
+      ["1:45 - 2:45", "DL"],
+      ["2:45 - 3:00", "Tea Break"],
+      ["3:00 - 5:00", "LAB"]
+    ],
+
+    Tuesday: [
+      ["10:00 - 11:00", "DL"],
+      ["11:00 - 12:00", "BDA"],
+      ["12:00 - 12:45", "Lunch Break"],
+      ["12:45 - 1:45", "I&A"],
+      ["1:45 - 2:45", "LIB"],
+      ["2:45 - 3:00", "Tea Break"],
+      ["3:00 - 5:00", "LAB"]
+    ],
+
+    Wednesday: [
+      ["10:00 - 11:00", "AML"],
+      ["11:00 - 12:00", "BDA"],
+      ["12:00 - 12:45", "Lunch Break"],
+      ["12:45 - 1:45", "LIB"],
+      ["1:45 - 2:45", "DL"],
+      ["2:45 - 3:00", "Tea Break"],
+      ["3:00 - 5:00", "LAB"]
+    ],
+
+    Thursday: [
+      ["10:00 - 11:00", "AML"],
+      ["11:00 - 12:00", "BDA"],
+      ["12:00 - 12:45", "Lunch Break"],
+      ["12:45 - 1:45", "ESD"],
+      ["1:45 - 2:45", "I&A"],
+      ["2:45 - 3:00", "Tea Break"],
+      ["3:00 - 5:00", "LAB"]
+    ],
+
+    Friday: [
+      ["10:00 - 11:00", "ESD"],
+      ["11:00 - 12:00", "BDA"],
+      ["12:00 - 12:45", "Lunch Break"],
+      ["12:45 - 1:45", "I&A"],
+      ["1:45 - 2:45", "DL"],
+      ["2:45 - 3:00", "Tea Break"],
+      ["3:00 - 5:00", "LAB"]
+    ],
+
+    Saturday: [
+      ["10:00 - 11:00", "ESD"],
+      ["11:00 - 12:00", "GATE"],
+      ["12:00 - 12:45", "Lunch Break"],
+      ["12:45 - 1:45", "I&A"],
+      ["1:45 - 2:45", "AML"],
+      ["2:45 - 3:00", "Tea Break"],
+      ["3:00 - 5:00", "LAB"]
+    ]
+  };
+
+  const currentDay = new Date().toLocaleDateString(
+    "en-US",
+    { weekday: "long" }
+  );
+
+  const todayTimetable = timetable[currentDay] || [];
   useEffect(() => {
     const fetchAttendanceData = async () => {
       try {
@@ -24,13 +92,13 @@ const Period = () => {
     fetchAttendanceData();
   }, []);
 
-  const periods = [
-    { name: 'DE', time: '10:00 AM' },
-    { name: 'ACV', time: '11:00 AM' },
-    { name: 'FSD', time: '12:45 PM' },
-    { name: 'NLP', time: '1:45 PM' },
-    { name: 'BT', time: '3:00 PM' }
-  ];
+  // const periods = [
+  //   { name: 'DE', time: '10:00 AM' },
+  //   { name: 'ACV', time: '11:00 AM' },
+  //   { name: 'FSD', time: '12:45 PM' },
+  //   { name: 'NLP', time: '1:45 PM' },
+  //   { name: 'BT', time: '3:00 PM' }
+  // ];
 
   const filteredData = filter
     ? attendanceData.filter((log) => log.period === filter)
@@ -63,11 +131,11 @@ const Period = () => {
                 </button>
               </Link>
               <Link to="/Period">
-                              <button className="flex items-center space-x-2 w-full text-left py-2 px-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-all duration-300">
-                                <FaClock className="text-green-500" />
-                                <span>Period Wise</span>
-                              </button>
-                            </Link>
+                <button className="flex items-center space-x-2 w-full text-left py-2 px-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-all duration-300">
+                  <FaClock className="text-green-500" />
+                  <span>Period Wise</span>
+                </button>
+              </Link>
             </div>
           </div>
           <Link to='/signin'>
@@ -82,29 +150,43 @@ const Period = () => {
         <div className="flex-1">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
             <div>
-              <p>Pages / Period Wise</p>
+              <p>Pages / Subject Wise</p>
               <h1 className="text-lg font-semibold">Student Attendance Subject Wise</h1>
             </div>
           </div>
 
           <div className="bg-white rounded-[1.1rem] shadow-md p-4">
-            <h1 className="text-gray-900 ml-2 font-bold">Subjects</h1>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mt-5">
-              {periods.map((period, index) => {
-                const count = attendanceData.filter(log => log.period === period.name).length;
-                return (
-                  <div key={index} className="p-5 rounded-2xl bg-gray-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {period.icon}
-                      <div>
-                        <h2 className="font-semibold text-2xl">{period.name}</h2>
-                        <h1>{period.time}</h1>
-                      </div>
-                    </div>
-                    <h2 className="text-5xl font-bold">{count}</h2>
-                  </div>
-                );
-              })}
+            <h1 className="text-gray-900 ml-2 font-bold text-xl">
+              TY Timetable ({currentDay})
+            </h1>
+
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full border-collapse border">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border p-3">Time</th>
+                    <th className="border p-3">Subject</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {todayTimetable.map((row, index) => (
+                    <tr
+                      key={index}
+                      className={
+                        row[1].includes("Lunch")
+                          ? "bg-yellow-100"
+                          : row[1].includes("Break")
+                            ? "bg-orange-100"
+                            : ""
+                      }
+                    >
+                      <td className="border p-3">{row[0]}</td>
+                      <td className="border p-3">{row[1]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+
+              </table>
             </div>
 
             {/* Filter Dropdown */}
@@ -120,8 +202,10 @@ const Period = () => {
                   className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="">All</option>
-                  {periods.map((p) => (
-                    <option key={p.name} value={p.name}>{p.name}</option>
+                  {[...new Set(attendanceData.map(log => log.period))].map(period => (
+                    <option key={period} value={period}>
+                      {period}
+                    </option>
                   ))}
                 </select>
               </div>
