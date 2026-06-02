@@ -15,12 +15,12 @@ app.use(cors());
 app.use(bodyParser.json());
 
 mongoose.connect(mongoURI)
-.then(() => console.log("MongoDB connected"))
-.catch((err) => console.error("MongoDB connection error:", err));
+  .then(() => console.log("MongoDB connected"))
+  .catch((err) => console.error("MongoDB connection error:", err));
 
 const studentSchema = new mongoose.Schema({
   name: String,
-  prn:String,
+  prn: String,
   age: String,
   course: String,
   phone: String,
@@ -31,7 +31,7 @@ const Student = mongoose.model('Student', studentSchema);
 app.post('/api/students', async (req, res) => {
   const { name, prn, age, course, phone } = req.body;
 
-  if (!name ||!prn || !age || !course || !phone) {
+  if (!name || !prn || !age || !course || !phone) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
@@ -459,9 +459,9 @@ function getPeriodForCurrentTime(currentTime) {
   };
 
   if (day === "Sunday") {
-  console.log("Returning Holiday");
-  return "Holiday";
-}
+    console.log("Returning Holiday");
+    return "Holiday";
+  }
   const todaySchedule = timetable[day];
 
   if (!todaySchedule) {
@@ -490,6 +490,257 @@ app.get('/api/periodwise-attendance', async (req, res) => {
   } catch {
     console.log("Error fetching periodwise logs:", err);
     res.status(500).json({ message: "Failed to fetch periodwise attendance logs" });
+  }
+});
+app.get('/api/attendance-sheet', async (req, res) => {
+  try {
+    const selectedSubject = req.query.subject;
+    const students = await Student.find();
+
+    const now = new Date();
+
+    const day = now.toLocaleDateString(
+      "en-US",
+      { weekday: "long" }
+    );
+
+    const timetable = {
+      Monday: [
+        { name: "AML", start: 600, end: 660 },
+        { name: "ESD", start: 660, end: 720 },
+        { name: "I&A", start: 765, end: 825 },
+        { name: "DL", start: 825, end: 885 },
+        { name: "LAB", start: 900, end: 1020 }
+      ],
+
+      Tuesday: [
+        { name: "DL", start: 600, end: 660 },
+        { name: "BDA", start: 660, end: 720 },
+        { name: "I&A", start: 765, end: 825 },
+        { name: "LIB", start: 825, end: 885 },
+        { name: "LAB", start: 900, end: 1020 }
+      ],
+
+      Wednesday: [
+        { name: "AML", start: 600, end: 660 },
+        { name: "BDA", start: 660, end: 720 },
+        { name: "LIB", start: 765, end: 825 },
+        { name: "DL", start: 825, end: 885 },
+        { name: "LAB", start: 900, end: 1020 }
+      ],
+
+      Thursday: [
+        { name: "AML", start: 600, end: 660 },
+        { name: "BDA", start: 660, end: 720 },
+        { name: "ESD", start: 765, end: 825 },
+        { name: "I&A", start: 825, end: 885 },
+        { name: "LAB", start: 900, end: 1020 }
+      ],
+
+      Friday: [
+        { name: "ESD", start: 600, end: 660 },
+        { name: "BDA", start: 660, end: 720 },
+        { name: "I&A", start: 765, end: 825 },
+        { name: "DL", start: 825, end: 885 },
+        { name: "LAB", start: 900, end: 1020 }
+      ],
+
+      Saturday: [
+        { name: "ESD", start: 600, end: 660 },
+        { name: "GATE", start: 660, end: 720 },
+        { name: "I&A", start: 765, end: 825 },
+        { name: "AML", start: 825, end: 885 },
+        { name: "LAB", start: 900, end: 1020 }
+      ]
+    };
+
+    const totalMinutes =
+      now.getHours() * 60 +
+      now.getMinutes();
+
+    const todaySchedule = timetable[day] || [];
+
+    let currentSubject = null;
+    let lectureEnded = false;
+
+    for (const p of todaySchedule) {
+
+      if (
+        totalMinutes >= p.start &&
+        totalMinutes < p.end
+      ) {
+        currentSubject = p.name;
+      }
+
+      if (
+        totalMinutes >= p.end
+      ) {
+        currentSubject = p.name;
+        lectureEnded = true;
+      }
+    }
+    console.log("Current Day:", day);
+    console.log("Minutes:", totalMinutes);
+    console.log("Subject:", currentSubject);
+    console.log("Lecture Ended:", lectureEnded);
+
+    if (!currentSubject) {
+
+      if (todaySchedule.length > 0) {
+
+        const lastPeriod =
+          todaySchedule[todaySchedule.length - 1];
+
+        currentSubject = lastPeriod.name;
+        lectureEnded = true;
+
+      } else {
+
+        return res.json([]);
+
+      }
+    }
+
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const subjectToShow =
+      selectedSubject || currentSubject;
+
+    const attendanceLogs =
+      await PeriodwiseAttendanceLog.find({
+        period: subjectToShow,
+        recognizedAt: {
+          $gte: today,
+          $lt: tomorrow
+        }
+      });
+
+    const result = students.map(student => {
+
+      const presentRecord =
+        attendanceLogs.find(
+          log => log.prn === student.prn
+        );
+
+      let status = "Pending";
+
+      if (presentRecord) {
+        status = "Present";
+      }
+      else if (lectureEnded) {
+        status = "Absent";
+      }
+
+      return {
+        name: student.name,
+        prn: student.prn,
+        subject: subjectToShow,
+        time: presentRecord
+          ? presentRecord.recognizedAt
+          : null,
+        status
+      };
+    });
+
+    res.json(result);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Failed to load attendance sheet"
+    });
+  }
+});
+app.get('/download-subject-report', async (req, res) => {
+  try {
+
+    const { subject, fromDate, toDate } = req.query;
+
+    if (!subject || !fromDate || !toDate) {
+      return res.status(400).json({
+        message: 'Subject, fromDate and toDate are required'
+      });
+    }
+
+    const students = await Student.find();
+
+    const startDate = new Date(fromDate);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(toDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    const attendanceLogs =
+      await PeriodwiseAttendanceLog.find({
+        period: subject,
+        recognizedAt: {
+          $gte: startDate,
+          $lte: endDate
+        }
+      });
+
+    const uniqueDates = [
+      ...new Set(
+        attendanceLogs.map(log =>
+          new Date(log.recognizedAt)
+            .toISOString()
+            .split('T')[0]
+        )
+      )
+    ];
+
+    const totalLectures = uniqueDates.length;
+
+    let csv =
+  `Subject: ${subject}\n` +
+  `From Date: ${fromDate}\n` +
+  `To Date: ${toDate}\n\n` +
+  "Name,PRN,Subject,Total Lectures,Present,Absent,Attendance Percentage\n";
+
+    students.forEach(student => {
+
+      const presentCount =
+        attendanceLogs.filter(
+          log => log.prn === student.prn
+        ).length;
+
+      const absentCount =
+        totalLectures - presentCount;
+
+      const percentage =
+        totalLectures > 0
+          ? (
+            (presentCount / totalLectures) * 100
+          ).toFixed(2)
+          : 0;
+
+      csv +=
+        `${student.name},${student.prn},${subject},${totalLectures},${presentCount},${absentCount},${percentage}%\n`;
+    });
+
+    res.header(
+      "Content-Type",
+      "text/csv"
+    );
+
+    res.attachment(
+      `${subject}_attendance_report.csv`
+    );
+
+    res.send(csv);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Failed to generate report"
+    });
   }
 });
 app.listen(PORT, () => {

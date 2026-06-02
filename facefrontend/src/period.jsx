@@ -5,8 +5,11 @@ import { FaJava, FaPython, FaNetworkWired, FaBrain, FaReact } from "react-icons/
 
 const Period = () => {
   const [attendanceData, setAttendanceData] = useState([]);
+  const [attendanceSheet, setAttendanceSheet] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState("AML");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const timetable = {
     Monday: [
@@ -82,6 +85,14 @@ const Period = () => {
         const response = await fetch("http://localhost:5001/api/periodwise-attendance");
         const data = await response.json();
         setAttendanceData(data);
+        const sheetResponse =
+          await fetch(
+            `http://localhost:5001/api/attendance-sheet?subject=${filter || "AML"}`
+          );
+        const sheetData =
+          await sheetResponse.json();
+
+        setAttendanceSheet(sheetData);
       } catch (error) {
         console.error("Error fetching attendance data:", error);
       } finally {
@@ -90,7 +101,7 @@ const Period = () => {
     };
 
     fetchAttendanceData();
-  }, []);
+  }, [filter]);
 
   // const periods = [
   //   { name: 'DE', time: '10:00 AM' },
@@ -100,10 +111,28 @@ const Period = () => {
   //   { name: 'BT', time: '3:00 PM' }
   // ];
 
-  const filteredData = filter
-    ? attendanceData.filter((log) => log.period === filter)
-    : attendanceData;
+  const filteredAttendanceSheet =
+    attendanceSheet.filter(
+      (student) => student.subject === filter
+    );
 
+    const downloadSubjectReport = () => {
+
+  if (!filter) {
+    alert("Please select subject");
+    return;
+  }
+
+  if (!fromDate || !toDate) {
+    alert("Please select date range");
+    return;
+  }
+
+  window.open(
+    `http://localhost:5001/download-subject-report?subject=${filter}&fromDate=${fromDate}&toDate=${toDate}`,
+    "_blank"
+  );
+};
   return (
     <div className="min-h-screen p-4 bg-split relative">
       <div className="flex flex-col lg:flex-row gap-6">
@@ -190,6 +219,30 @@ const Period = () => {
             </div>
 
             {/* Filter Dropdown */}
+            <div className="flex gap-3 mt-4">
+
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="border rounded px-3 py-2"
+              />
+
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="border rounded px-3 py-2"
+              />
+
+              <button
+                onClick={downloadSubjectReport}
+                className="bg-green-600 text-white px-4 py-2 rounded"
+              >
+                Download CSV
+              </button>
+
+            </div>
             <div className="mt-5 space-y-4">
               <div className="flex items-center space-x-2">
                 <label htmlFor="courseFilter" className="text-sm font-medium text-gray-700">
@@ -201,12 +254,14 @@ const Period = () => {
                   onChange={(e) => setFilter(e.target.value)}
                   className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
-                  <option value="">All</option>
-                  {[...new Set(attendanceData.map(log => log.period))].map(period => (
-                    <option key={period} value={period}>
-                      {period}
-                    </option>
-                  ))}
+                  <option value="AML">AML</option>
+                  <option value="ESD">ESD</option>
+                  <option value="BDA">BDA</option>
+                  <option value="DL">DL</option>
+                  <option value="I&A">I&A</option>
+                  <option value="LIB">LIB</option>
+                  <option value="LAB">LAB</option>
+                  <option value="GATE">GATE</option>
                 </select>
               </div>
 
@@ -218,25 +273,57 @@ const Period = () => {
                     <th className="text-left px-4 py-3">PRN</th>
                     <th className="text-left px-4 py-3">Subject</th>
                     <th className="text-left px-4 py-3">Time</th>
+                    <th className="text-left px-4 py-3">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="4" className="text-center py-4 text-gray-500">Loading attendance data...</td>
-                    </tr>
-                  ) : filteredData.length > 0 ? (
-                    filteredData.map((log, index) => (
-                      <tr key={index} className="hover:bg-gray-100 rounded-xl">
-                        <td className="px-4 py-2 rounded-l-xl">{log.name}</td>
-                        <td className="px-4 py-2">{log.prn}</td>
-                        <td className="px-4 py-2">{log.period}</td>
-                        <td className="px-4 py-2">{new Date(log.recognizedAt).toLocaleString()}</td>
+                  {filteredAttendanceSheet.length > 0 ? (
+                    filteredAttendanceSheet.map((student, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2">
+                          {student.name}
+                        </td>
+
+                        <td className="px-4 py-2">
+                          {student.prn}
+                        </td>
+
+                        <td className="px-4 py-2">
+                          {student.subject}
+                        </td>
+
+                        <td className="px-4 py-2">
+                          {student.time
+                            ? new Date(student.time)
+                              .toLocaleString()
+                            : "-"}
+                        </td>
+
+                        <td className="px-4 py-2">
+                          {student.status === "Present" ? (
+                            <span className="text-green-600 font-bold">
+                              Present
+                            </span>
+                          ) : student.status === "Absent" ? (
+                            <span className="text-red-600 font-bold">
+                              Absent
+                            </span>
+                          ) : (
+                            <span className="text-yellow-600 font-bold">
+                              Pending
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" className="text-center py-4 text-gray-500">No attendance records found.</td>
+                      <td
+                        colSpan="5"
+                        className="text-center py-4"
+                      >
+                        No students found
+                      </td>
                     </tr>
                   )}
                 </tbody>
