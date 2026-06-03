@@ -88,14 +88,25 @@ app.post('/api/attendance', async (req, res) => {
   }
 
   try {
-    let student = await Student.findOne({ prn });
+    const student = await Student.findOne({ prn });
+    console.log("Entered Name:", name);
+console.log("Entered PRN:", prn);
+console.log("Student Found:", student);
 
-    if (!student && (!name || !course)) {
-      return res.status(404).json({
-        message: "Student not found"
+    if (!student) {
+      return res.status(400).json({
+        message: "Student is not enrolled. Please add the student first."
       });
     }
-
+    if (
+      name &&
+      student.name.toLowerCase().trim() !==
+      name.toLowerCase().trim()
+    ) {
+      return res.status(400).json({
+        message: "Name and PRN do not match."
+      });
+    }
     const attendanceTime = recognizedAt
       ? new Date(recognizedAt)
       : new Date();
@@ -142,12 +153,11 @@ app.post('/api/attendance', async (req, res) => {
 
     const attendanceLog = new AttendanceLog({
       prn,
-      name: student ? student.name : name,
-      course: student ? student.course : course,
+      name: student.name,
+      course: student.course,
       period,
       recognizedAt: attendanceTime
     });
-
     await attendanceLog.save();
 
     const existingPeriodLog =
@@ -163,8 +173,8 @@ app.post('/api/attendance', async (req, res) => {
     if (!existingPeriodLog) {
       await PeriodwiseAttendanceLog.create({
         prn,
-        name: student ? student.name : name,
-        course: student ? student.course : course,
+        name: student.name,
+        course: student.course,
         period,
         recognizedAt: attendanceTime
       });
@@ -277,17 +287,30 @@ const periodwiseAttendanceLogSchema = new mongoose.Schema({
 });
 const PeriodwiseAttendanceLog = mongoose.model('PeriodwiseAttendanceLog', periodwiseAttendanceLogSchema);
 app.post('/api/periodwise-attendance', async (req, res) => {
-  const { prn, recognizedAt } = req.body;
+  const { prn, name, recognizedAt } = req.body;
   console.log("Incoming data:", req.body);
   if (!prn) {
     return res.status(400).json({ message: "PRN is required" });
   }
   try {
     const student = await Student.findOne({ prn });
+
     if (!student) {
-      console.log("Student not found");
-      return res.status(404).json({ message: "Student not found" });
+      return res.status(400).json({
+        message: "Student is not enrolled. Please add the student first."
+      });
     }
+
+    if (
+      name &&
+      student.name.toLowerCase().trim() !==
+      name.toLowerCase().trim()
+    ) {
+      return res.status(400).json({
+        message: "Name and PRN do not match."
+      });
+    }
+    
     const now = recognizedAt ? new Date(recognizedAt) : new Date();
     const period = getPeriodForCurrentTime(now);
     console.log("Calculated period:", period);
@@ -495,6 +518,7 @@ app.get('/api/periodwise-attendance', async (req, res) => {
 app.get('/api/attendance-sheet', async (req, res) => {
   try {
     const selectedSubject = req.query.subject;
+    console.log("Selected Subject:", selectedSubject);
     const students = await Student.find();
 
     const now = new Date();
@@ -697,10 +721,10 @@ app.get('/download-subject-report', async (req, res) => {
     const totalLectures = uniqueDates.length;
 
     let csv =
-  `Subject: ${subject}\n` +
-  `From Date: ${fromDate}\n` +
-  `To Date: ${toDate}\n\n` +
-  "Name,PRN,Subject,Total Lectures,Present,Absent,Attendance Percentage\n";
+      `Subject: ${subject}\n` +
+      `From Date: ${fromDate}\n` +
+      `To Date: ${toDate}\n\n` +
+      "Name,PRN,Subject,Total Lectures,Present,Absent,Attendance Percentage\n";
 
     students.forEach(student => {
 
@@ -740,6 +764,138 @@ app.get('/download-subject-report', async (req, res) => {
 
     res.status(500).json({
       message: "Failed to generate report"
+    });
+  }
+});
+app.get('/api/subject-analytics', async (req, res) => {
+
+  try {
+
+    const subjects = [
+      "AML",
+      "BDA",
+      "DL",
+      "I&A",
+      "LIB",
+      "LAB",
+      "ESD",
+      "GATE"
+    ];
+
+    const result = [];
+
+    for (const subject of subjects) {
+
+      const logs =
+        await PeriodwiseAttendanceLog.find({
+          period: subject
+        });
+
+      const totalStudents =
+        await Student.countDocuments();
+
+      const present =
+        new Set(logs.map(log => log.prn));
+
+      const percentage =
+        totalStudents > 0
+          ? (present.size / totalStudents) * 100
+          : 0;
+
+      result.push({
+        subject,
+        attendance:
+          Number(percentage.toFixed(2))
+      });
+    }
+
+    res.json(result);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Analytics error"
+    });
+  }
+});
+
+app.get('/api/present-absent/:subject', async (req, res) => {
+
+  try {
+
+    const subject =
+      req.params.subject;
+
+    const totalStudents =
+      await Student.countDocuments();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow =
+      new Date(today);
+
+    tomorrow.setDate(
+      today.getDate() + 1
+    );
+
+    const present =
+      await PeriodwiseAttendanceLog.distinct(
+        "prn",
+        {
+          period: subject,
+          recognizedAt: {
+            $gte: today,
+            $lt: tomorrow
+          }
+        }
+      );
+
+    res.json({
+      present: present.length,
+      absent:
+        totalStudents - present.length
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Analytics error"
+    });
+  }
+});
+
+app.get('/api/defaulters', async (req, res) => {
+
+  try {
+
+    const students =
+      await Student.find();
+
+    const result = [];
+
+    students.forEach(student => {
+
+      result.push({
+        name: student.name,
+        prn: student.prn,
+        percentage: 60
+      });
+
+    });
+
+    res.json(result);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Analytics error"
     });
   }
 });

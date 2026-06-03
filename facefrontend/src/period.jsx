@@ -87,7 +87,7 @@ const Period = () => {
         setAttendanceData(data);
         const sheetResponse =
           await fetch(
-            `http://localhost:5001/api/attendance-sheet?subject=${filter || "AML"}`
+            `http://localhost:5001/api/attendance-sheet?subject=${encodeURIComponent(filter || "AML")}`
           );
         const sheetData =
           await sheetResponse.json();
@@ -116,23 +116,23 @@ const Period = () => {
       (student) => student.subject === filter
     );
 
-    const downloadSubjectReport = () => {
+  const downloadSubjectReport = () => {
 
-  if (!filter) {
-    alert("Please select subject");
-    return;
-  }
+    if (!filter) {
+      alert("Please select subject");
+      return;
+    }
 
-  if (!fromDate || !toDate) {
-    alert("Please select date range");
-    return;
-  }
+    if (!fromDate || !toDate) {
+      alert("Please select date range");
+      return;
+    }
 
-  window.open(
-    `http://localhost:5001/download-subject-report?subject=${filter}&fromDate=${fromDate}&toDate=${toDate}`,
-    "_blank"
-  );
-};
+    window.open(
+      `http://localhost:5001/download-subject-report?subject=${encodeURIComponent(filter)}&fromDate=${fromDate}&toDate=${toDate}`,
+      "_blank"
+    );
+  };
   return (
     <div className="min-h-screen p-4 bg-split relative">
       <div className="flex flex-col lg:flex-row gap-6">

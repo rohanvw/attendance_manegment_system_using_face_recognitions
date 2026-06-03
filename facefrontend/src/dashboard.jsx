@@ -17,18 +17,18 @@ const Dashboard = () => {
 
     const today = new Date().toISOString().split('T')[0];
     const presentTodayPRNs = new Set(
-  attendance
-    .filter((student) => {
-      const attendedDate = new Date(student.recognizedAt)
-        .toISOString()
-        .split("T")[0];
+        attendance
+            .filter((student) => {
+                const attendedDate = new Date(student.recognizedAt)
+                    .toISOString()
+                    .split("T")[0];
 
-      return attendedDate === today;
-    })
-    .map((student) => student.prn)
-);
+                return attendedDate === today;
+            })
+            .map((student) => student.prn)
+    );
 
-const presentTodayCount = presentTodayPRNs.size;
+    const presentTodayCount = presentTodayPRNs.size;
     // const presentToday = attendance.filter((student) => {
     //     const attendedDate = new Date(student.recognizedAt).toISOString().split('T')[0];
     //     return attendedDate === today;
@@ -55,9 +55,9 @@ const presentTodayCount = presentTodayPRNs.size;
 
     const totalStudents = students.length;
     const absentStudents = Math.max(
-  0,
-  totalStudents - presentTodayCount
-);
+        0,
+        totalStudents - presentTodayCount
+    );
 
     useEffect(() => {
         const fetchAttendance = async () => {
@@ -87,7 +87,7 @@ const presentTodayCount = presentTodayPRNs.size;
     const filteredAttendance = selectedCourse === "All"
         ? attendance
         : attendance.filter((student) => student.course === selectedCourse);
-    
+
     const currentAttendance = filteredAttendance;
     // const indexOfLastItem = currentPage * itemsPerPage;
     // const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -129,6 +129,12 @@ const presentTodayCount = presentTodayPRNs.size;
                                 <button className="flex items-center space-x-2 w-full text-left py-2 px-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-all duration-300">
                                     <FaClock className="text-green-500" />
                                     <span>Period Wise</span>
+                                </button>
+                            </Link>
+                            <Link to="/analytics">
+                                <button className="flex items-center space-x-2 w-full text-left py-2 px-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-all duration-300">
+                                    <FaClipboardList className="text-blue-500" />
+                                    <span>Analytics</span>
                                 </button>
                             </Link>
                         </div>
@@ -224,38 +230,38 @@ const presentTodayCount = presentTodayPRNs.size;
                                 <table className="min-w-full table-auto border-separate border-spacing-y-2 text-sm text-gray-900">
                                     <thead>
                                         <tr className="bg-[#F7F7F7] text-gray-900">
-    <th className="text-left px-4 py-3 rounded-l-lg">Name</th>
-    <th className="text-left px-4 py-3">PRN</th>
-    <th className="text-left px-4 py-3">Course</th>
-    <th className="text-left px-4 py-3">Subject</th>
-    <th className="text-left px-4 py-3 rounded-r-lg">Timings</th>
-</tr>
-</thead>
+                                            <th className="text-left px-4 py-3 rounded-l-lg">Name</th>
+                                            <th className="text-left px-4 py-3">PRN</th>
+                                            <th className="text-left px-4 py-3">Course</th>
+                                            <th className="text-left px-4 py-3">Subject</th>
+                                            <th className="text-left px-4 py-3 rounded-r-lg">Timings</th>
+                                        </tr>
+                                    </thead>
 
-<tbody>
-    {currentAttendance.length > 0 ? (
-        currentAttendance.map((student, index) => (
-            <tr
-                key={index}
-                className="hover:bg-[#f0f4f8] transition-colors duration-200 rounded-lg"
-            >
-                <td className="px-4 py-3">{student.name}</td>
-                <td className="px-4 py-3">{student.prn}</td>
-                <td className="px-4 py-3">{student.course}</td>
-                <td className="px-4 py-3">{student.period}</td>
-                <td className="px-4 py-3">
-                    {new Date(student.recognizedAt).toLocaleString()}
-                </td>
-            </tr>
-        ))
-    ) : (
-        <tr>
-            <td colSpan="5" className="text-center text-gray-400">
-                No attendance logs available
-            </td>
-        </tr>
-    )}
-</tbody>
+                                    <tbody>
+                                        {currentAttendance.length > 0 ? (
+                                            currentAttendance.map((student, index) => (
+                                                <tr
+                                                    key={index}
+                                                    className="hover:bg-[#f0f4f8] transition-colors duration-200 rounded-lg"
+                                                >
+                                                    <td className="px-4 py-3">{student.name}</td>
+                                                    <td className="px-4 py-3">{student.prn}</td>
+                                                    <td className="px-4 py-3">{student.course}</td>
+                                                    <td className="px-4 py-3">{student.period}</td>
+                                                    <td className="px-4 py-3">
+                                                        {new Date(student.recognizedAt).toLocaleString()}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="5" className="text-center text-gray-400">
+                                                    No attendance logs available
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
