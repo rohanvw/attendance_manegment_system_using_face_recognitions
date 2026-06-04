@@ -17,14 +17,13 @@ import {
 import "./App.css";
 
 import {
-    PieChart,
-    Pie,
     BarChart,
     Bar,
     XAxis,
     YAxis,
     Tooltip,
-    ResponsiveContainer
+    ResponsiveContainer,
+    CartesianGrid
 } from "recharts";
 
 export default function Analytics() {
@@ -79,6 +78,12 @@ export default function Analytics() {
             });
 
     }, [subject]);
+
+    const totalStudents =
+        pieData.reduce(
+            (sum, item) => sum + item.value,
+            0
+        );
 
     return (
         <div className="min-h-screen p-4 bg-split">
@@ -191,21 +196,55 @@ export default function Analytics() {
 
                             </select>
 
+                            <h2 className="font-bold text-xl mb-4 mt-8">
+                                Present vs Absent Students
+                            </h2>
+
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+
+                                <div className="bg-green-100 p-4 rounded-lg text-center">
+                                    <h3 className="font-bold text-green-700">
+                                        Present Students
+                                    </h3>
+
+                                    <p className="text-3xl font-bold">
+                                        {pieData.find(x => x.name === "Present")?.value || 0}
+                                    </p>
+                                </div>
+
+                                <div className="bg-red-100 p-4 rounded-lg text-center">
+                                    <h3 className="font-bold text-red-700">
+                                        Absent Students
+                                    </h3>
+
+                                    <p className="text-3xl font-bold">
+                                        {pieData.find(x => x.name === "Absent")?.value || 0}
+                                    </p>
+                                </div>
+
+                            </div>
+
                             <ResponsiveContainer
                                 width="100%"
                                 height={350}
                             >
 
-                                <PieChart>
+                                <BarChart data={pieData}>
 
-                                    <Pie
-                                        data={pieData}
-                                        dataKey="value"
-                                        nameKey="name"
-                                        label
+                                    <CartesianGrid strokeDasharray="3 3" />
+
+                                    <XAxis dataKey="name" />
+
+                                    <YAxis
+                                        allowDecimals={false}
+                                        domain={[0, totalStudents]}
                                     />
 
-                                </PieChart>
+                                    <Tooltip />
+
+                                    <Bar dataKey="value" />
+
+                                </BarChart>
 
                             </ResponsiveContainer>
 

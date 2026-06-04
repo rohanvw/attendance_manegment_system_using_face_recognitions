@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaHome, FaFileAlt, FaUser, FaDownload, FaClock } from 'react-icons/fa';
+import {
+  FaHome,
+  FaFileAlt,
+  FaUser,
+  FaDownload,
+  FaClock,
+  FaClipboardList
+} from 'react-icons/fa';
 import { FaJava, FaPython, FaNetworkWired, FaBrain, FaReact } from "react-icons/fa";
 
 const Period = () => {
@@ -163,6 +170,12 @@ const Period = () => {
                 <button className="flex items-center space-x-2 w-full text-left py-2 px-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-all duration-300">
                   <FaClock className="text-green-500" />
                   <span>Period Wise</span>
+                </button>
+              </Link>
+              <Link to="/analytics">
+                <button className="flex items-center space-x-2 w-full text-left py-2 px-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-all duration-300">
+                  <FaClipboardList className="text-blue-500" />
+                  <span>Analytics</span>
                 </button>
               </Link>
             </div>
