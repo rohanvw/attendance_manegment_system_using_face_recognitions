@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,7 +7,7 @@ const bodyParser = require('body-parser');
 const path = require("path");
 const fs = require("fs");
 
-const mongoURI = 'mongodb+srv://rohanwahule12345:attendance@attendance.jkl3ryi.mongodb.net/?appName=attendance';
+const mongoURI = process.env.MONGODB_URI;
 
 const app = express();
 const PORT = 5001;
