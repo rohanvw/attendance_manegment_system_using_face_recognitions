@@ -73,12 +73,6 @@ const attendanceLogSchema = new mongoose.Schema({
   period: String,
   recognizedAt: { type: Date, default: Date.now }
 });
-// const attendanceLogSchema = new mongoose.Schema({
-//   prn: String,
-//   name: String,
-//   course: String,
-//   recognizedAt: { type: Date, default: Date.now }
-// });
 
 const AttendanceLog = mongoose.model('AttendanceLog', attendanceLogSchema);
 app.post('/api/attendance', async (req, res) => {
@@ -192,49 +186,6 @@ console.log("Student Found:", student);
     });
   }
 });
-/*
-app.post('/api/attendance', async (req, res) => {
-  const { prn, name, course, recognizedAt } = req.body;
-  if (!prn) {
-    return res.status(400).json({ message: "PRN is required" });
-  }
-  try {
-    let student = await Student.findOne({ prn });
-    // If no student found, but name & course provided => allow manual entry
-    if (!student && (!name || !course)) {
-      return res.status(404).json({ message: "Student not found, and insufficient manual data provided" });
-    }
-
-    // Determine the current date (or use recognizedAt if provided)
-    const today = new Date().toISOString().split('T')[0];
-    const recognizedDate = recognizedAt ? new Date(recognizedAt) : new Date();
-
-    // Check for existing attendance on the same day
-    const existingLog = await AttendanceLog.findOne({
-      prn,
-      recognizedAt: {
-        $gte: new Date(today),
-        $lt: new Date(new Date(today).setDate(new Date(today).getDate() + 1))
-      }
-    });
-    if (existingLog) {
-      return res.status(400).json({ message: "Attendance already recorded for today" });
-    }
-    // Use data from the DB or from manual fields
-    const log = new AttendanceLog({
-      prn,
-      name: student ? student.name : name,
-      course: student ? student.course : course,
-      recognizedAt: recognizedDate
-    });
-    await log.save();
-    res.status(200).json({ message: "Attendance logged successfully" });
-  } catch (err) {
-    console.error("Error logging attendance:", err);
-    res.status(500).json({ message: "Failed to log attendance" });
-  }
-});
-*/
 
 ///////////////////////admin login and signup///////////
 const AdminSchema = new mongoose.Schema({
@@ -387,10 +338,6 @@ app.get("/download-logs", async (req, res) => {
 
       csv += `${log.name},${log.prn || log.usn},${log.course},${log.period || ""},"${formattedDate}"\n`;
     });
-
-    // logs.forEach((log) => {
-    //   csv += `${log.name},${log.prn || log.usn},${log.course},${log.recognizedAt}\n`;
-    // });
 
     res.header("Content-Type", "text/csv");
     res.attachment("attendance_logs.csv");
@@ -870,35 +817,294 @@ app.get('/api/present-absent/:subject', async (req, res) => {
   }
 });
 
-app.get('/api/defaulters', async (req, res) => {
+app.get('/api/monthly-report', async (req, res) => {
 
-  try {
+    try {
 
-    const students =
-      await Student.find();
+        const month = Number(req.query.month);
+        const year = Number(req.query.year);
 
-    const result = [];
+        const students = await Student.find();
 
-    students.forEach(student => {
+        const subjects = [
+            "AML",
+            "BDA",
+            "DL",
+            "I&A",
+            "LIB",
+            "LAB",
+            "ESD",
+            "GATE"
+        ];
 
-      result.push({
-        name: student.name,
-        prn: student.prn,
-        percentage: 60
-      });
+        const startDate =
+            new Date(year, month - 1, 1);
 
-    });
+        const endDate =
+            new Date(year, month, 0);
 
-    res.json(result);
+        endDate.setHours(
+            23, 59, 59, 999
+        );
 
-  } catch (err) {
+        const logs =
+            await PeriodwiseAttendanceLog.find({
 
-    console.error(err);
+                recognizedAt: {
+                    $gte: startDate,
+                    $lte: endDate
+                }
 
-    res.status(500).json({
-      message: "Analytics error"
-    });
-  }
+            });
+
+        const subjectTotals = {};
+
+        subjects.forEach(subject => {
+
+            const uniqueDates = new Set(
+
+                logs
+                    .filter(
+                        log =>
+                            log.period === subject
+                    )
+                    .map(
+                        log =>
+                            new Date(log.recognizedAt)
+                                .toISOString()
+                                .split("T")[0]
+                    )
+
+            );
+
+            subjectTotals[subject] =
+                uniqueDates.size;
+        });
+
+        const result =
+            students.map((student, index) => {
+
+                let theoryTotal = 0;
+                let practicalTotal = 0;
+
+                const studentData = {
+
+                    srNo: index + 1,
+
+                    prn: student.prn,
+
+                    name: student.name
+
+                };
+
+                subjects.forEach(subject => {
+
+                    const attended =
+                        logs.filter(
+
+                            log =>
+
+                                log.prn ===
+                                student.prn &&
+
+                                log.period ===
+                                subject
+
+                        ).length;
+
+                    studentData[subject] =
+                        attended;
+
+                    if (subject === "LAB") {
+
+                        practicalTotal +=
+                            attended;
+
+                    }
+
+                    else {
+
+                        theoryTotal +=
+                            attended;
+
+                    }
+
+                });
+
+                studentData.theoryTotal =
+                    theoryTotal;
+
+                studentData.practicalTotal =
+                    practicalTotal;
+
+                studentData.overallTotal =
+                    theoryTotal +
+                    practicalTotal;
+
+                const totalLectures =
+                    Object.values(subjectTotals)
+                        .reduce(
+                            (a, b) => a + b,
+                            0
+                        );
+
+                studentData.percentage =
+                    totalLectures > 0
+
+                        ? (
+                            (
+                                studentData.overallTotal /
+                                totalLectures
+                            ) * 100
+                        ).toFixed(2)
+
+                        : "0.00";
+
+                studentData.isDefaulter =
+
+                    Number(
+                        studentData.percentage
+                    ) < 75;
+
+                return studentData;
+            });
+
+        res.json({
+
+            subjectTotals,
+
+            students: result
+
+        });
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+
+            message: "Report Error"
+
+        });
+
+    }
+
+});
+
+app.get('/download-defaulter-report', async (req, res) => {
+    try {
+        const month = Number(req.query.month);
+        const year = Number(req.query.year);
+
+        const students = await Student.find();
+
+        const subjects = [
+            "AML", "BDA", "DL", "I&A",
+            "LIB", "LAB", "ESD", "GATE"
+        ];
+
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0);
+        endDate.setHours(23, 59, 59, 999);
+
+        const logs = await PeriodwiseAttendanceLog.find({
+            recognizedAt: {
+                $gte: startDate,
+                $lte: endDate
+            }
+        });
+
+        const subjectTotals = {};
+
+        subjects.forEach(subject => {
+            const uniqueDates = new Set(
+                logs
+                    .filter(log => log.period === subject)
+                    .map(log =>
+                        new Date(log.recognizedAt)
+                            .toISOString()
+                            .split("T")[0]
+                    )
+            );
+
+            subjectTotals[subject] = uniqueDates.size;
+        });
+
+        let csv =
+            "Sr No,PRN,Student Name," +
+            "AML,BDA,DL,I&A,LIB,LAB,ESD,GATE," +
+            "Theory Total,Practical Total,Overall,%\n";
+
+        students.forEach((student, index) => {
+
+            let theoryTotal = 0;
+            let practicalTotal = 0;
+
+            const counts = {};
+
+            subjects.forEach(subject => {
+
+                const attended = logs.filter(
+                    log =>
+                        log.prn === student.prn &&
+                        log.period === subject
+                ).length;
+
+                counts[subject] = attended;
+
+                if (subject === "LAB") {
+                    practicalTotal += attended;
+                } else {
+                    theoryTotal += attended;
+                }
+            });
+
+            const overall = theoryTotal + practicalTotal;
+
+            const totalLectures =
+                Object.values(subjectTotals)
+                    .reduce((a, b) => a + b, 0);
+
+            const percentage =
+                totalLectures > 0
+                    ? ((overall / totalLectures) * 100).toFixed(2)
+                    : "0.00";
+
+           csv +=
+    `${index + 1},` +
+    `${student.prn},` +
+    `${student.name},` +
+    `${counts.AML},` +
+    `${counts.BDA},` +
+    `${counts.DL},` +
+    `${counts["I&A"]},` +
+    `${counts.LIB},` +
+    `${counts.LAB},` +
+    `${counts.ESD},` +
+    `${counts.GATE},` +
+    `${theoryTotal},` +
+    `${practicalTotal},` +
+    `${overall},` +
+    `${percentage}%\n`;
+        });
+
+        res.header("Content-Type", "text/csv");
+        res.attachment(
+            `Defaulter_Report_${month}_${year}.csv`
+        );
+
+        res.send(csv);
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            message: "Failed to download report"
+        });
+    }
 });
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

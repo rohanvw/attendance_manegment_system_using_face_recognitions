@@ -40,6 +40,18 @@ export default function Analytics() {
     const [defaulters, setDefaulters] =
         useState([]);
 
+    const [subjectTotals, setSubjectTotals] =
+        useState({});
+
+    const [month, setMonth] =
+        useState(
+            new Date().getMonth() + 1
+        );
+
+    const [year, setYear] =
+        useState(
+            new Date().getFullYear()
+        );
     useEffect(() => {
 
         fetch(
@@ -49,10 +61,16 @@ export default function Analytics() {
             .then(setSubjects);
 
         fetch(
-            "http://localhost:5001/api/defaulters"
+            `http://localhost:5001/api/monthly-report?month=${month}&year=${year}`
         )
             .then(res => res.json())
-            .then(setDefaulters);
+            .then(data => {
+
+                setDefaulters(data.students);
+
+                setSubjectTotals(data.subjectTotals);
+
+            });
 
     }, []);
 
@@ -249,51 +267,199 @@ export default function Analytics() {
                             </ResponsiveContainer>
 
                         </div>
+                        <div className="flex gap-4 mb-4">
+
+                            <select
+                                value={month}
+                                onChange={
+                                    e =>
+                                        setMonth(
+                                            Number(e.target.value)
+                                        )
+                                }
+                                className="border px-3 py-2 rounded"
+                            >
+
+                                {
+                                    Array.from(
+                                        { length: 12 },
+                                        (_, i) => (
+
+                                            <option
+                                                key={i + 1}
+                                                value={i + 1}
+                                            >
+                                                {i + 1}
+                                            </option>
+
+                                        )
+                                    )
+                                }
+
+                            </select>
+
+                            <input
+
+                                type="number"
+
+                                value={year}
+
+                                onChange={
+                                    e =>
+                                        setYear(
+                                            Number(e.target.value)
+                                        )
+                                }
+
+                                className="border px-3 py-2 rounded"
+
+                            />
+
+                            <button
+
+                                onClick={() => {
+
+                                    fetch(
+                                        `http://localhost:5001/api/monthly-report?month=${month}&year=${year}`
+                                    )
+
+                                        .then(
+                                            res => res.json()
+                                        )
+
+                                        .then(data => {
+
+                                            setDefaulters(
+                                                data.students
+                                            );
+
+                                            setSubjectTotals(
+                                                data.subjectTotals
+                                            );
+
+                                        });
+
+                                }}
+
+                                className="
+            bg-blue-600
+            text-white
+            px-4
+            py-2
+            rounded
+        "
+                            >
+
+                                Generate Report
+
+                            </button>
+
+                        </div>
+                        <button
+    onClick={() => {
+        window.open(
+            `http://localhost:5001/download-defaulter-report?month=${month}&year=${year}`,
+            "_blank"
+        );
+    }}
+    className="bg-green-600 text-white px-4 py-2 rounded mb-4 flex items-center gap-2"
+>
+    <FaDownload />
+    Download Defaulter List
+</button>
 
                         <div className="mt-10">
 
                             <h2 className="font-bold text-xl mb-4">
                                 Defaulter Students
                             </h2>
+                            
 
-                            <table className="w-full border">
+                            <table className="w-full border text-center">
 
                                 <thead>
 
                                     <tr className="bg-gray-100">
-                                        <th className="p-3 text-left">
-                                            Name
-                                        </th>
 
-                                        <th className="p-3 text-left">
-                                            PRN
-                                        </th>
+                                        <th>Sr No</th>
 
-                                        <th className="p-3 text-left">
-                                            Attendance %
-                                        </th>
+                                        <th>PRN</th>
+
+                                        <th>Student Name</th>
+
+                                        <th>AML ({subjectTotals.AML || 0})</th>
+
+                                        <th>BDA ({subjectTotals.BDA || 0})</th>
+
+                                        <th>DL ({subjectTotals.DL || 0})</th>
+
+                                        <th>I&A ({subjectTotals["I&A"] || 0})</th>
+
+                                        <th>LIB ({subjectTotals.LIB || 0})</th>
+
+                                        <th>LAB ({subjectTotals.LAB || 0})</th>
+
+                                        <th>ESD ({subjectTotals.ESD || 0})</th>
+
+                                        <th>GATE ({subjectTotals.GATE || 0})</th>
+
+                                        <th>Theory Total</th>
+
+                                        <th>Practical Total</th>
+
+                                        <th>Overall</th>
+
+                                        <th>%</th>
+
                                     </tr>
 
                                 </thead>
 
                                 <tbody>
 
-                                    {defaulters.map((student, index) => (
-                                        <tr key={index}>
+                                    {defaulters.map(student => (
 
-                                            <td className="p-3">
-                                                {student.name}
-                                            </td>
+                                        <tr
+                                            key={student.prn}
+                                            className={
+                                                student.isDefaulter
+                                                    ? "bg-red-200"
+                                                    : ""
+                                            }
+                                        >
 
-                                            <td className="p-3">
-                                                {student.prn}
-                                            </td>
+                                            <td>{student.srNo}</td>
 
-                                            <td className="p-3">
-                                                {student.percentage}%
-                                            </td>
+                                            <td>{student.prn}</td>
+
+                                            <td>{student.name}</td>
+
+                                            <td>{student.AML}</td>
+
+                                            <td>{student.BDA}</td>
+
+                                            <td>{student.DL}</td>
+
+                                            <td>{student["I&A"]}</td>
+
+                                            <td>{student.LIB}</td>
+
+                                            <td>{student.LAB}</td>
+
+                                            <td>{student.ESD}</td>
+
+                                            <td>{student.GATE}</td>
+
+                                            <td>{student.theoryTotal}</td>
+
+                                            <td>{student.practicalTotal}</td>
+
+                                            <td>{student.overallTotal}</td>
+
+                                            <td>{student.percentage}%</td>
 
                                         </tr>
+
                                     ))}
 
                                 </tbody>
